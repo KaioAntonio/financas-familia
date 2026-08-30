@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
   :root{
     --bg: #0a0e14;
@@ -227,10 +229,17 @@
   <div class="hint">
     <span>💡</span>
     <div><b>Como usar:</b> digite os valores de receita e despesa de cada mês nos campos da tabela.
-    Os cartões, os gráficos e os totais são recalculados automaticamente e salvos sozinhos
-    (aparece "Salvo" no canto superior). Use "+ Novo ano" para começar um ano diferente, e o menu
-    "Ano" para trocar entre eles. <b>Atenção:</b> estes dados ficam salvos neste link do painel e são
-    visíveis a qualquer pessoa que o abra — não é necessário criar conta nem login.</div>
+    Os cartões, os gráficos e os totais são recalculados automaticamente e salvos sozinhos no banco
+    de dados (aparece "Salvo" no canto superior). Use "+ Novo ano" para começar um ano diferente, e o
+    menu "Ano" para trocar entre eles. Se abrirem o painel em dois aparelhos ao mesmo tempo, os dois
+    se atualizam sozinhos.</div>
+  </div>
+
+  <div class="hint" id="configWarning" style="display:none;border-color:#f4b740;">
+    <span>⚠️</span>
+    <div><b>Configuração pendente:</b> cole a sua <code>firebaseConfig</code> no início do arquivo
+    (procure por <code>SUBSTITUA_AQUI</code> no código-fonte) para o painel conseguir salvar os dados.
+    Até lá, os valores digitados não serão salvos.</div>
   </div>
 
 </div>
@@ -238,6 +247,33 @@
 <script>
 const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const MONTHS_SHORT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+// ======================================================================
+// COLE AQUI A SUA CHAVE DO FIREBASE (copiada do console do Firebase).
+// Troque TODO o objeto abaixo pelo que você copiou em
+// "Configurações do projeto" > "Seus apps" > firebaseConfig.
+// ======================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAoQPjCZ8baQbZQk6qUdiZGmIenbfYFTes",
+  authDomain: "financas-familia-125c1.firebaseapp.com",
+  databaseURL: "https://financas-familia-125c1-default-rtdb.firebaseio.com",
+  projectId: "financas-familia-125c1",
+  storageBucket: "financas-familia-125c1.firebasestorage.app",
+  messagingSenderId: "385736240031",
+  appId: "1:385736240031:web:6b9d9ce7ecdc92e31debaa"
+};
+// ======================================================================
+
+let db = null;
+const isConfigured = firebaseConfig.apiKey !== "SUBSTITUA_AQUI";
+if (isConfigured) {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+} else {
+  document.addEventListener('DOMContentLoaded', ()=>{
+    document.getElementById('configWarning').style.display = 'flex';
+  });
+}
 
 let currentYear = new Date().getFullYear().toString();
 let years = [currentYear];
@@ -251,26 +287,51 @@ const fmtPct = (n)=> (isFinite(n)? n.toFixed(2).replace('.',',') : '0,00') + '%'
 function emptyYearData(){ return MONTHS.map(()=>({receita:0, despesa:0})); }
 
 async function loadYearsList(){
+  if(!isConfigured){ years = [currentYear]; return; }
   try{
-    const res = await window.storage.get('financas:years', true);
-    years = res && res.value ? JSON.parse(res.value) : [currentYear];
+    const snap = await db.ref('financas/years').once('value');
+    const val = snap.val();
+    years = Array.isArray(val) && val.length ? val : [currentYear];
   }catch(e){ years = [currentYear]; }
   if(!years.includes(currentYear)) years.unshift(currentYear);
 }
 
 async function saveYearsList(){
-  try{ await window.storage.set('financas:years', JSON.stringify(years), true); }catch(e){}
+  if(!isConfigured) return;
+  try{ await db.ref('financas/years').set(years); }catch(e){}
 }
 
 async function loadYearData(year){
+  if(!isConfigured) return emptyYearData();
   try{
-    const res = await window.storage.get('financas:'+year, true);
-    if(res && res.value){
-      const parsed = JSON.parse(res.value);
-      if(Array.isArray(parsed) && parsed.length===12) return parsed;
+    const snap = await db.ref('financas/dados/'+year).once('value');
+    const val = snap.val();
+    if(Array.isArray(val) && val.length===12){
+      return val.map(m=> m ? {receita:+m.receita||0, despesa:+m.despesa||0} : {receita:0,despesa:0});
     }
   }catch(e){}
   return emptyYearData();
+}
+
+let remoteListenerRef = null;
+function listenToYear(year){
+  if(!isConfigured) return;
+  if(remoteListenerRef) remoteListenerRef.off();
+  remoteListenerRef = db.ref('financas/dados/'+year);
+  remoteListenerRef.on('value', (snap)=>{
+    // Evita sobrescrever enquanto o usuário está digitando em um campo
+    if(document.activeElement && document.activeElement.classList.contains('cell')) return;
+    const val = snap.val();
+    if(Array.isArray(val) && val.length===12){
+      const incoming = val.map(m=> m ? {receita:+m.receita||0, despesa:+m.despesa||0} : {receita:0,despesa:0});
+      if(JSON.stringify(incoming) !== JSON.stringify(data)){
+        data = incoming;
+        renderTable();
+        renderKPIs();
+        renderCharts();
+      }
+    }
+  });
 }
 
 function setSaving(state){
@@ -281,11 +342,12 @@ function setSaving(state){
 }
 
 function scheduleSave(){
+  if(!isConfigured) return;
   setSaving('saving');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
     try{
-      await window.storage.set('financas:'+currentYear, JSON.stringify(data), true);
+      await db.ref('financas/dados/'+currentYear).set(data);
     }catch(e){}
     setSaving('saved');
   }, 500);
@@ -420,13 +482,18 @@ async function switchYear(year){
   renderTable();
   renderKPIs();
   renderCharts();
+  listenToYear(year);
 }
 
 async function init(){
   await loadYearsList();
   populateYearSelect();
   await switchYear(currentYear);
-  setSaving('saved');
+  if(isConfigured){
+    setSaving('saved');
+  } else {
+    document.getElementById('saveText').textContent = 'Não configurado';
+  }
 
   document.getElementById('yearSelect').addEventListener('change', async (e)=>{
     await switchYear(e.target.value);
