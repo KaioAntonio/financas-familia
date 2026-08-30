@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resumo Financeiro Anual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #0a0e14;
+    --panel: #121822;
+    --panel-2: #0d121a;
+    --border: #1f2937;
+    --text: #e8ecf1;
+    --text-dim: #8b96a5;
+    --blue: #5b9bf7;
+    --red: #f16b6b;
+    --green: #33d69f;
+    --amber: #f4b740;
+    --green-glow: rgba(51,214,159,0.18);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 500px at 15% -10%, rgba(91,155,247,0.08), transparent 60%),
+      radial-gradient(900px 400px at 100% 0%, rgba(51,214,159,0.06), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    padding:28px;
+    min-height:100vh;
+  }
+  .wrap{max-width:1400px;margin:0 auto;}
+
+  /* Header */
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:22px;flex-wrap:wrap;}
+  .htitle{display:flex;align-items:center;gap:14px;}
+  .logo{
+    width:46px;height:46px;border-radius:12px;
+    background:linear-gradient(135deg,var(--green),#1a9c6f);
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;box-shadow:0 6px 20px rgba(51,214,159,0.25);
+    flex-shrink:0;
+  }
+  h1{
+    font-family:'Sora',sans-serif;font-weight:800;font-size:26px;
+    margin:0;letter-spacing:0.3px;
+  }
+  .subtitle{color:var(--text-dim);font-size:13.5px;margin-top:3px;}
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  select, button{
+    font-family:'Inter',sans-serif;font-size:13.5px;font-weight:600;
+    background:var(--panel);border:1px solid var(--border);color:var(--text);
+    padding:9px 14px;border-radius:9px;cursor:pointer;
+  }
+  select:hover, button:hover{border-color:#33415a;}
+  button.primary{background:linear-gradient(135deg,var(--green),#1a9c6f);border:none;color:#052018;}
+  button.ghost{background:transparent;color:var(--text-dim);}
+  button.danger{color:var(--red);}
+
+  /* Save pill */
+  .save-pill{
+    font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:6px;
+    padding:8px 4px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--green);transition:background .3s;}
+  .dot.saving{background:var(--amber);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  hr.rule{border:none;height:2px;background:linear-gradient(90deg,var(--green),transparent 70%);margin:0 0 24px 0;}
+
+  /* KPI cards */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+  .kpi{
+    background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:18px 20px;position:relative;overflow:hidden;
+  }
+  .kpi .label{font-size:12.5px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;margin-bottom:8px;}
+  .kpi .value{font-family:'Sora',sans-serif;font-weight:700;font-size:26px;}
+  .kpi .foot{font-size:12px;color:var(--text-dim);margin-top:6px;}
+  .kpi .icon{
+    position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:16px;
+  }
+  .kpi.receita .label{color:var(--blue)} .kpi.receita .icon{background:var(--blue);color:#05122b}
+  .kpi.despesa .label{color:var(--red)} .kpi.despesa .icon{background:var(--red);color:#2b0505}
+  .kpi.saldo .label{color:var(--green)} .kpi.saldo .icon{background:var(--green);color:#05231a}
+  .kpi.margem .label{color:var(--amber)} .kpi.margem .icon{background:var(--amber);color:#2b1f05}
+  .foot .up{color:var(--blue);font-weight:700}
+  .foot .down{color:var(--red);font-weight:700}
+  .foot .pos{color:var(--green);font-weight:700}
+  .foot .neg{color:var(--red);font-weight:700}
+
+  /* Charts row */
+  .charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;}
+  .panel h3{font-family:'Sora',sans-serif;font-size:14px;margin:0 0 14px 0;letter-spacing:0.3px;}
+  .chart-box{height:260px;position:relative;}
+
+  /* Table */
+  .table-panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  thead th{
+    background:#182234;color:#a8c3f5;text-align:left;padding:12px 16px;
+    font-family:'Sora',sans-serif;font-weight:700;font-size:13px;letter-spacing:0.3px;
+  }
+  thead th:not(:first-child){text-align:right;}
+  tbody td{padding:9px 16px;border-top:1px solid var(--border);}
+  tbody td:not(:first-child){text-align:right;}
+  tbody tr:hover{background:rgba(255,255,255,0.02);}
+  .month-name{font-weight:600;color:var(--text);}
+  input.cell{
+    width:130px;text-align:right;background:var(--panel-2);border:1px solid var(--border);
+    color:var(--text);padding:7px 10px;border-radius:7px;font-family:'Inter',sans-serif;font-size:13.5px;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  input.cell:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-glow);}
+  .saldo-cell{font-weight:700;min-width:110px;display:inline-block;}
+  .saldo-cell.pos{color:var(--green);}
+  .saldo-cell.neg{color:var(--red);}
+  .saldo-cell.zero{color:var(--text-dim);}
+  tfoot td{
+    padding:14px 16px;border-top:2px solid var(--border);font-family:'Sora',sans-serif;font-weight:800;font-size:14.5px;
+  }
+  tfoot .tot-label{color:var(--text-dim);letter-spacing:0.3px;font-family:'Inter',sans-serif;font-weight:700;}
+  tfoot .tot-receita{color:var(--blue);}
+  tfoot .tot-despesa{color:var(--red);}
+  tfoot .tot-saldo{color:var(--green);}
+
+  .hint{
+    display:flex;gap:10px;align-items:flex-start;background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;padding:14px 16px;margin-top:16px;font-size:13px;color:var(--text-dim);line-height:1.5;
+  }
+  .hint b{color:var(--text);}
+
+  @media (max-width:1000px){
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .charts{grid-template-columns:1fr;}
+    table{font-size:12.5px;}
+    input.cell{width:95px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="htitle">
+      <div class="logo">📊</div>
+      <div>
+        <h1>RESUMO FINANCEIRO ANUAL</h1>
+        <div class="subtitle">Receitas, Despesas e Saldo por Mês — preencha e o painel atualiza sozinho</div>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="save-pill"><span class="dot" id="saveDot"></span><span id="saveText">Salvo</span></div>
+      <select id="yearSelect"></select>
+      <button class="ghost" id="addYearBtn">+ Novo ano</button>
+      <button class="danger ghost" id="clearBtn">Limpar ano</button>
+    </div>
+  </header>
+  <hr class="rule">
+
+  <div class="kpis" id="kpis">
+    <div class="kpi receita">
+      <div class="icon">$</div>
+      <div class="label">Receita total</div>
+      <div class="value" id="kpiReceita">R$ 0,00</div>
+      <div class="foot">vs Despesas <span class="up" id="kpiReceitaFoot">0%</span></div>
+    </div>
+    <div class="kpi despesa">
+      <div class="icon">$</div>
+      <div class="label">Despesa total</div>
+      <div class="value" id="kpiDespesa">R$ 0,00</div>
+      <div class="foot">vs Receitas <span class="down" id="kpiDespesaFoot">0%</span></div>
+    </div>
+    <div class="kpi saldo">
+      <div class="icon">↗</div>
+      <div class="label">Saldo total</div>
+      <div class="value" id="kpiSaldo">R$ 0,00</div>
+      <div class="foot">Receitas − Despesas</div>
+    </div>
+    <div class="kpi margem">
+      <div class="icon">%</div>
+      <div class="label">Margem (%)</div>
+      <div class="value" id="kpiMargem">0%</div>
+      <div class="foot">Saldo / Receitas</div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="panel">
+      <h3>RECEITAS × DESPESAS POR MÊS</h3>
+      <div class="chart-box"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3>SALDO MENSAL (RECEITAS − DESPESAS)</h3>
+      <div class="chart-box"><canvas id="lineChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="table-panel">
+    <table>
+      <thead>
+        <tr>
+          <th>Mês</th>
+          <th>Receitas (R$)</th>
+          <th>Despesas (R$)</th>
+          <th>Saldo (R$)</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+      <tfoot>
+        <tr>
+          <td class="tot-label">TOTAL ANUAL</td>
+          <td class="tot-receita" id="totReceita">R$ 0,00</td>
+          <td class="tot-despesa" id="totDespesa">R$ 0,00</td>
+          <td class="tot-saldo" id="totSaldo">R$ 0,00</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="hint">
+    <span>💡</span>
+    <div><b>Como usar:</b> digite os valores de receita e despesa de cada mês nos campos da tabela.
+    Os cartões, os gráficos e os totais são recalculados automaticamente e salvos sozinhos
+    (aparece "Salvo" no canto superior). Use "+ Novo ano" para começar um ano diferente, e o menu
+    "Ano" para trocar entre eles. <b>Atenção:</b> estes dados ficam salvos neste link do painel e são
+    visíveis a qualquer pessoa que o abra — não é necessário criar conta nem login.</div>
+  </div>
+
+</div>
+
+<script>
+const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const MONTHS_SHORT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+let currentYear = new Date().getFullYear().toString();
+let years = [currentYear];
+let data = MONTHS.map(()=>({receita:0, despesa:0}));
+let barChart=null, lineChart=null;
+let saveTimer=null;
+
+const fmtBRL = (n)=> (n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtPct = (n)=> (isFinite(n)? n.toFixed(2).replace('.',',') : '0,00') + '%';
+
+function emptyYearData(){ return MONTHS.map(()=>({receita:0, despesa:0})); }
+
+async function loadYearsList(){
+  try{
+    const res = await window.storage.get('financas:years', true);
+    years = res && res.value ? JSON.parse(res.value) : [currentYear];
+  }catch(e){ years = [currentYear]; }
+  if(!years.includes(currentYear)) years.unshift(currentYear);
+}
+
+async function saveYearsList(){
+  try{ await window.storage.set('financas:years', JSON.stringify(years), true); }catch(e){}
+}
+
+async function loadYearData(year){
+  try{
+    const res = await window.storage.get('financas:'+year, true);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      if(Array.isArray(parsed) && parsed.length===12) return parsed;
+    }
+  }catch(e){}
+  return emptyYearData();
+}
+
+function setSaving(state){
+  const dot = document.getElementById('saveDot');
+  const txt = document.getElementById('saveText');
+  if(state==='saving'){ dot.classList.add('saving'); txt.textContent='Salvando…'; }
+  else { dot.classList.remove('saving'); txt.textContent='Salvo'; }
+}
+
+function scheduleSave(){
+  setSaving('saving');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    try{
+      await window.storage.set('financas:'+currentYear, JSON.stringify(data), true);
+    }catch(e){}
+    setSaving('saved');
+  }, 500);
+}
+
+function populateYearSelect(){
+  const sel = document.getElementById('yearSelect');
+  sel.innerHTML = '';
+  years.slice().sort().forEach(y=>{
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    if(y===currentYear) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function computeTotals(){
+  let receita=0, despesa=0;
+  data.forEach(m=>{ receita += (+m.receita||0); despesa += (+m.despesa||0); });
+  const saldo = receita - despesa;
+  const margem = receita>0 ? (saldo/receita*100) : 0;
+  const vsDespesa = despesa>0 ? (receita/despesa*100) : 0;
+  const vsReceita = receita>0 ? (despesa/receita*100) : 0;
+  return {receita, despesa, saldo, margem, vsDespesa, vsReceita};
+}
+
+function renderKPIs(){
+  const t = computeTotals();
+  document.getElementById('kpiReceita').textContent = fmtBRL(t.receita);
+  document.getElementById('kpiDespesa').textContent = fmtBRL(t.despesa);
+  document.getElementById('kpiSaldo').textContent = fmtBRL(t.saldo);
+  document.getElementById('kpiSaldo').style.color = t.saldo>=0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('kpiMargem').textContent = fmtPct(t.margem);
+  document.getElementById('kpiReceitaFoot').textContent = fmtPct(t.vsDespesa);
+  document.getElementById('kpiDespesaFoot').textContent = fmtPct(t.vsReceita);
+
+  document.getElementById('totReceita').textContent = fmtBRL(t.receita);
+  document.getElementById('totDespesa').textContent = fmtBRL(t.despesa);
+  document.getElementById('totSaldo').textContent = fmtBRL(t.saldo);
+}
+
+function renderTable(){
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  data.forEach((m, i)=>{
+    const saldo = (+m.receita||0) - (+m.despesa||0);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="month-name">${MONTHS[i]}</td>
+      <td><input class="cell" type="number" step="0.01" min="0" placeholder="0,00" data-idx="${i}" data-field="receita" value="${m.receita||''}"></td>
+      <td><input class="cell" type="number" step="0.01" min="0" placeholder="0,00" data-idx="${i}" data-field="despesa" value="${m.despesa||''}"></td>
+      <td><span class="saldo-cell ${saldo>0?'pos':saldo<0?'neg':'zero'}">${fmtBRL(saldo)}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('input.cell').forEach(inp=>{
+    inp.addEventListener('input', (e)=>{
+      const idx = +e.target.dataset.idx;
+      const field = e.target.dataset.field;
+      data[idx][field] = parseFloat(e.target.value) || 0;
+      renderKPIs();
+      renderCharts();
+      renderSaldoCellOnly(idx);
+      scheduleSave();
+    });
+  });
+}
+
+function renderSaldoCellOnly(idx){
+  const rows = document.querySelectorAll('#tbody tr');
+  const row = rows[idx];
+  if(!row) return;
+  const saldo = (+data[idx].receita||0) - (+data[idx].despesa||0);
+  const span = row.querySelector('.saldo-cell');
+  span.textContent = fmtBRL(saldo);
+  span.className = 'saldo-cell ' + (saldo>0?'pos':saldo<0?'neg':'zero');
+}
+
+function renderCharts(){
+  const receitas = data.map(m=> +m.receita||0);
+  const despesas = data.map(m=> +m.despesa||0);
+  const saldos = data.map(m=> (+m.receita||0)-(+m.despesa||0));
+
+  const gridColor = 'rgba(255,255,255,0.06)';
+  const tickColor = '#8b96a5';
+
+  if(barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), {
+    type:'bar',
+    data:{
+      labels: MONTHS_SHORT,
+      datasets:[
+        {label:'Receitas (R$)', data:receitas, backgroundColor:'#5b9bf7', borderRadius:4, maxBarThickness:22},
+        {label:'Despesas (R$)', data:despesas, backgroundColor:'#f16b6b', borderRadius:4, maxBarThickness:22}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#e8ecf1', font:{size:11}}} },
+      scales:{
+        x:{ ticks:{color:tickColor}, grid:{display:false} },
+        y:{ ticks:{color:tickColor, callback:(v)=> 'R$ '+(v/1000).toLocaleString('pt-BR')+'mil'}, grid:{color:gridColor} }
+      }
+    }
+  });
+
+  if(lineChart) lineChart.destroy();
+  lineChart = new Chart(document.getElementById('lineChart'), {
+    type:'line',
+    data:{
+      labels: MONTHS_SHORT,
+      datasets:[{
+        label:'Saldo (R$)', data:saldos, borderColor:'#33d69f', backgroundColor:'rgba(51,214,159,0.15)',
+        fill:true, tension:0.35, pointBackgroundColor:'#33d69f', pointRadius:4
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{color:tickColor}, grid:{display:false} },
+        y:{ ticks:{color:tickColor, callback:(v)=> 'R$ '+(v/1000).toLocaleString('pt-BR')+'mil'}, grid:{color:gridColor} }
+      }
+    }
+  });
+}
+
+async function switchYear(year){
+  currentYear = year;
+  data = await loadYearData(year);
+  renderTable();
+  renderKPIs();
+  renderCharts();
+}
+
+async function init(){
+  await loadYearsList();
+  populateYearSelect();
+  await switchYear(currentYear);
+  setSaving('saved');
+
+  document.getElementById('yearSelect').addEventListener('change', async (e)=>{
+    await switchYear(e.target.value);
+  });
+
+  document.getElementById('addYearBtn').addEventListener('click', async ()=>{
+    const y = prompt('Digite o ano (ex: 2025):', (parseInt(currentYear)+1).toString());
+    if(!y || !/^\d{4}$/.test(y.trim())) return;
+    const yr = y.trim();
+    if(!years.includes(yr)){
+      years.push(yr);
+      await saveYearsList();
+      populateYearSelect();
+      document.getElementById('yearSelect').value = yr;
+    }
+    await switchYear(yr);
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', async ()=>{
+    if(!confirm('Tem certeza que deseja apagar todos os valores de ' + currentYear + '?')) return;
+    data = emptyYearData();
+    renderTable();
+    renderKPIs();
+    renderCharts();
+    scheduleSave();
+  });
+}
+
+init();
+</script>
+</body>
+</html>
